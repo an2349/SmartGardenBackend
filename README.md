@@ -80,7 +80,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local.
 
 ---
 
-## 🌐 API Endpoints
+## API Endpoints
 
 ### Authentication (`/auth`)
 
@@ -142,8 +142,8 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local.
 ```
 Backend/
 ├── pom.xml
-├── src/main/java/com/andeptrai/iot/
-│   ├── TuoicayApplication.java        # @EnableScheduling
+├── src/main/java/com/smartgardenmini/
+│   ├── SmartGardenMiniApplication.java        # @EnableScheduling
 │   ├── config/
 │   │   ├── MqttConfig.java            # Spring Integration MQTTv5
 │   │   └── WebSocketConfig.java       # Legacy backward compat
@@ -195,14 +195,14 @@ docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto
 mvn clean package -DskipTests
 
 # Chạy (cần MQTT broker đang chạy)
-java -jar target/tuoicay-2.0.0.jar
+java -jar target/smartgardenmini-2.0.0.jar
 ```
 
 ### 3. Cấu hình Telegram (tuỳ chọn)
 ```bash
 # Tạo bot qua BotFather, lấy token
 # Tìm chat ID (gửi tin nhắn rồi truy cập api.telegram.org/...)
-java -jar target/tuoicay-2.0.0.jar \
+java -jar target/smartgardenmini-2.0.0.jar \
   --telegram.bot-token=123456:ABC \
   --telegram.chat-id=123456
 ```
@@ -239,8 +239,8 @@ Core 1 (APP_CPU) - Sensor Task:
 |------|-------|----------|
 | `BOT_TOKEN` | Telegram Bot Token | (trống) |
 | `CHAT_ID` | Telegram Chat ID | (trống) |
-| `MQTT_USER` | MQTT username | tuoicay |
-| `MQTT_PASS` | MQTT password | tuoicay123 |
+| `MQTT_USER` | MQTT username | smartgardenmini |
+| `MQTT_PASS` | MQTT password | smartgardenmini123 |
 
 ---
 
