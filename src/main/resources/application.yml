@@ -7,25 +7,45 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
   h2:
     console:
-      enabled: true
+      enabled: false
       path: /h2-console
+
 server:
   port: 8080
 
----
+# JWT Configuration
+jwt:
+  secret: tuoicay-secret-key-2024-change-in-production-environment-v2
+  access-token-expiration: 3600000    # 1 giờ
+  refresh-token-expiration: 604800000 # 7 ngày
 
-logging: # Thêm khối này vào đây
+# MQTT Configuration
+mqtt:
+  broker-url: tcp://localhost:1883
+  client-id: backend_tuoicay
+  username: ${MQTT_USER:tuoicay}
+  password: ${MQTT_PASS:tuoicay123}
+  topic:
+    telemetry: iot/+/telemetry
+    status: iot/+/status
+    command: iot/{macId}/command
+    config: iot/{macId}/config
+    ack: iot/+/ack
+
+# Telegram Bot (cảnh báo)
+telegram:
+  bot-token: ${BOT_TOKEN:}   # Token từ BotFather
+  chat-id: ${CHAT_ID:}       # Chat ID người nhận
+
+# Logging
+logging:
   level:
-    org:
-      springframework:
-        security: DEBUG
-        web:
-          filter:
-            OncePerRequestFilter: DEBUG
-    com:
-      andeptrai:
-        iot:
-          jwtS: DEBUG
+    com.smartgardenmini: DEBUG
+    org.springframework.security: WARN
+    org.springframework.integration: INFO
