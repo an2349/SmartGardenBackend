@@ -278,7 +278,7 @@ void networkTask(void *pvParameters) {
 // ==================== Web Server (AP mode) ====================
 void handleRoot() { server.send(200, "text/html",
   "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width'><style>body{font-family:Arial;padding:20px;max-width:400px;margin:auto}input{width:100%;padding:8px;margin:5px 0;box-sizing:border-box}input[type=submit]{background:#4CAF50;color:white;border:none;padding:10px;cursor:pointer}</style></head>"
-  "<body><h2>🌱 Đăng ký thiết bị</h2>"
+  "<body><h2> Đăng ký thiết bị</h2>"
   "<form action='/submit' method='POST'>"
   "Username: <input type='text' name='username' required><br>"
   "Tên thiết bị: <input type='text' name='name' required><br>"

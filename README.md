@@ -1,11 +1,11 @@
-# 🌱 Tưới Cây - Remote Plant Watering System v3.0
+# Mini Smart Garden System v3.0
 
-**Tuoicay** là hệ thống tưới cây từ xa thông minh, bao gồm **Backend Spring Boot** (Java) và **Firmware ESP32 Dual-Core** (Arduino/C++).  
-ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ quản lý, giám sát và gửi config.
+Hệ thống tưới cây từ xa, bao gồm **Backend Spring Boot** (Java) và **Firmware ESP32 Dual-Core** (Arduino/C++).
+ESP32 tự động tưới OFFLINE dựa trên threshold local. 
 
 ---
 
-## 🏗️ Kiến Trúc Hệ Thống
+## Kiến Trúc Hệ Thống
 
 ```
                           ┌──────────────────────────────┐
@@ -33,12 +33,11 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 
 ---
 
-## 🧠 Auto-Water OFFLINE (Tính năng chính)
+##  Auto-Water OFFLINE 
 
 ### Cách hoạt động
-- **ESP32 tự quyết định tưới**, không cần server
 - Ngưỡng độ ẩm (`threshold`) và chế độ (`auto`) lưu trong Preferences (non-volatile)
-- Backend **chỉ gửi config** xuống, ESP32 tự chạy
+- Backend **chỉ gửi config** 
 - Khi mất WiFi, ESP32 vẫn tưới tự động bình thường
 
 ### Luồng:
@@ -62,25 +61,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 
 ---
 
-## 🔄 So sánh: Phiên bản cũ vs mới
-
-| Tính năng | v1 (cũ) | v2/v3 (mới) |
-|-----------|---------|-------------|
-| **Giao tiếp** | WebSocket | MQTT (ưu tiên) + WebSocket (legacy) |
-| **Auto-water** | Server quyết định → gửi lệnh ESP32 | **ESP32 tự quyết định OFFLINE** |
-| **Cần mạng để tưới?** | ✅ Bắt buộc | ❌ Không cần |
-| **Kiến trúc ESP32** | Single core | **Dual-Core** (Core 0: Network, Core 1: Sensor) |
-| **HTTP Retry** | Không | ✅ Retry 3 lần + exponential backoff |
-| **Fail-safe** | Không | ✅ Bơm tự tắt sau 5 phút |
-| **Command ACK** | Không | ✅ ESP32 báo đã nhận lệnh |
-| **Cảnh báo** | Không | ✅ Telegram Bot |
-| **Lịch tưới** | Không | ✅ Cron job mỗi phút |
-| **Chia sẻ thiết bị** | Không | ✅ Cho nhiều user |
-| **JWT** | HS256 random secret | HS256 cố định + Refresh Token |
-
----
-
-## 📦 Công Nghệ
+##  Công Nghệ
 
 ### Backend
 - **Java 17** + **Spring Boot 3.1.5**
@@ -101,7 +82,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 
 ## 🌐 API Endpoints
 
-### 🔐 Authentication (`/auth`)
+### Authentication (`/auth`)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -110,7 +91,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 | POST | `/auth/refresh` | Làm mới access token |
 | POST | `/auth/dangkythietbi?authCode=` | ESP32 đăng ký thiết bị lần đầu |
 
-### 📟 Thiết bị IoT (`/iot`)
+### Thiết bị IoT (`/iot`)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -122,7 +103,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 | POST | `/iot/control/bom/{deviceId}?command=ON&duration=30` | Điều khiển bơm + tưới thời lượng |
 | **POST** | **`/iot/config/{deviceId}?auto=1&threshold=40`** | **Gửi config xuống ESP32** |
 
-### 📊 Dữ liệu & Giám sát
+### Dữ liệu & Giám sát
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -137,7 +118,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 | GET | `/iot/sensor/{deviceId}/luuluong` | Lưu lượng nước |
 | GET | `/iot/status/{deviceId}` | Trạng thái online/offline |
 
-### ⏰ Lịch tưới & Chia sẻ
+###  Lịch tưới & Chia sẻ
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -146,7 +127,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 | GET | `/iot/shared` | Thiết bị được chia sẻ với tôi |
 | GET/POST | `/iot/alert/...` | Cảnh báo Telegram |
 
-### 👤 Người dùng (`/users`)
+###  Người dùng (`/users`)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -156,7 +137,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local. Backend chỉ qu
 
 ---
 
-## 🧩 Cấu Trúc Dự Án
+##  Cấu Trúc Dự Án
 
 ```
 Backend/
@@ -201,7 +182,7 @@ Backend/
 
 ---
 
-## 🚀 Chạy Dự Án
+##  Chạy Dự Án
 
 ### 1. MQTT Broker
 ```bash
@@ -233,7 +214,7 @@ java -jar target/tuoicay-2.0.0.jar \
 
 ---
 
-## 📡 ESP32 Dual-Core Chi Tiết
+##  ESP32 Dual-Core Chi Tiết
 
 ```
 Core 0 (PRO_CPU) - Network Task:
@@ -252,7 +233,7 @@ Core 1 (APP_CPU) - Sensor Task:
 
 ---
 
-## 🔒 Cấu Hình Môi Trường
+##  Cấu Hình Môi Trường
 
 | Biến | Mô tả | Mặc định |
 |------|-------|----------|
@@ -263,6 +244,3 @@ Core 1 (APP_CPU) - Sensor Task:
 
 ---
 
-## 📝 Giấy Phép
-
-Dự án mã nguồn mở - phát triển bởi **@an2349**.
