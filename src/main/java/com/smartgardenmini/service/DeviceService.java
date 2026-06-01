@@ -107,7 +107,11 @@ public class DeviceService {
             if (durationSec != null) {
                 payload.put("duration", durationSec);
             }
-            String topic = "iot/" + macId + "/command";
+            String username = getCurrentUsername();
+            if (username == null || username.isEmpty()) {
+                username = iotRepo.findBymacId(macId).map(Iot::getUsername).orElse("unknown");
+            }
+            String topic = "user/" + username + "/iot/" + macId + "/command";
             String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
             mqttOutputChannel.send(MessageBuilder.withPayload(json.getBytes())
                     .setHeader("mqtt_topic", topic)
@@ -405,7 +409,7 @@ public class DeviceService {
             if (auto != null) payload.put("auto", auto);
             if (threshold != null) payload.put("threshold", threshold);
 
-            String topic = "iot/" + macId + "/config";
+            String topic = "user/" + username + "/iot/" + macId + "/config";
             String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
             mqttOutputChannel.send(MessageBuilder.withPayload(json.getBytes())
                     .setHeader("mqtt_topic", topic)

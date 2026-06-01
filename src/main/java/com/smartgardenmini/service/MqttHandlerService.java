@@ -34,21 +34,37 @@ public class MqttHandlerService {
     @Transactional
     public void handleMessage(String topic, String payload) {
         try {
-            if (topic.contains("/telemetry")) {
-                handleTelemetry(topic, payload);
-            } else if (topic.contains("/status")) {
-                handleStatus(topic, payload);
-            } else if (topic.contains("/ack")) {
-                handleAck(topic, payload);
+            // Topic mới: user/{username}/iot/{macId}/{type}
+            // Topic cũ (fallback): iot/{macId}/{type}
+            String[] parts = topic.split("/");
+            String username = null;
+            String macId;
+
+            if (parts.length == 5 && "user".equals(parts[0])) {
+                // user/{username}/iot/{macId}/{type}
+                username = parts[1];
+                macId = parts[3];
+            } else if (parts.length == 3 && "iot".equals(parts[0])) {
+                // iot/{macId}/{type} (fallback cho thiết bị cũ)
+                macId = parts[1];
+            } else {
+                log.warn("MQTT topic không đúng định dạng: {}", topic);
+                return;
+            }
+
+            if (topic.endsWith("/telemetry")) {
+                handleTelemetry(topic, payload, macId, username);
+            } else if (topic.endsWith("/status")) {
+                handleStatus(topic, payload, macId, username);
+            } else if (topic.endsWith("/ack")) {
+                handleAck(topic, payload, macId, username);
             }
         } catch (Exception e) {
             log.error("Lỗi xử lý MQTT topic={} payload={}", topic, payload, e);
         }
     }
 
-    private void handleTelemetry(String topic, String payload) throws Exception {
-        // topic: iot/{macId}/telemetry
-        String macId = topic.split("/")[1];
+    private void handleTelemetry(String topic, String payload, String macId, String username) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode node = mapper.readTree(payload);
 
@@ -80,18 +96,16 @@ public class MqttHandlerService {
         iotRepo.save(device);
     }
 
-    private void handleStatus(String topic, String payload) throws Exception {
-        String macId = topic.split("/")[1];
+    private void handleStatus(String topic, String payload, String macId, String username) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode node = mapper.readTree(payload);
         boolean online = node.has("online") && node.get("online").asBoolean();
         deviceService.markOnline(macId);
-        log.debug("Thiết bị {} online={}", macId, online);
+        log.debug("Thiết bị {} (user={}) online={}", macId, username, online);
     }
 
-    private void handleAck(String topic, String payload) throws Exception {
-        String macId = topic.split("/")[1];
-        log.debug("ACK từ {}: {}", macId, payload);
+    private void handleAck(String topic, String payload, String macId, String username) throws Exception {
+        log.debug("ACK từ {} (user={}): {}", macId, username, payload);
         deviceService.processAck(macId, payload);
     }
 }

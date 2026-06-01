@@ -1,43 +1,40 @@
 # Mini Smart Garden System v3.0
 
-Hệ thống tưới cây từ xa, bao gồm **Backend Spring Boot** (Java) và **Firmware ESP32 Dual-Core** (Arduino/C++).
-ESP32 tự động tưới OFFLINE dựa trên threshold local. 
-
 ---
 
 ## Kiến Trúc Hệ Thống
 
 ```
-                          ┌──────────────────────────────┐
-                          │        MQTT Broker           │
-                          │     (Mosquitto/EMQX)         │
-                          │       port 1883              │
-                          └───┬──────────────┬───────────┘
-                              │              │
-           publish:           │              │  subscribe:
-     iot/{mac}/telemetry ◄────┤              ├────► iot/{mac}/command
-       iot/{mac}/status       │              │      iot/{mac}/config
-       iot/{mac}/ack          │              │
-                              │              │
-                     ┌────────┴──┐    ┌──────┴─────────┐
-                     │   ESP32   │    │    Backend      │
-                     │ Dual-Core │    │  Spring Boot    │
-                     │           │    │    :8080        │
-                     │ Core 0:   │    │                 │
-                     │  Network  │    │ - REST API      │
-                     │ Core 1:   │    │ - JWT Auth      │
-                     │  Sensor   │    │ - Telegram Bot  │
-                     │  Auto-Water│   │ - Lịch tưới     │
-                     └───────────┘    └─────────────────┘
+                           +------------------------------+
+                           |        MQTT Broker           |
+                           |     (Mosquitto/EMQX)         |
+                           |       port 1883              |
+                           +---+--------------+-----------+
+                               |              |
+            publish:           |              |  subscribe:
+ user/{user}/iot/{mac}/telemetry              |      user/{user}/iot/{mac}/command
+   user/{user}/iot/{mac}/status |              |      user/{user}/iot/{mac}/config
+     user/{user}/iot/{mac}/ack  |              |
+                               |              |
+                      +--------+--+    +------+---------+
+                      |   ESP32   |    |    Backend      |
+                      | Dual-Core |    |  Spring Boot    |
+                      |           |    |    :8080        |
+                      | Core 0:   |    |                 |
+                      |  Network  |    | - REST API      |
+                      | Core 1:   |    | - JWT Auth      |
+                      |  Sensor   |    | - Telegram Bot  |
+                      |  Auto-Water|   | - Lịch tưới     |
+                      +-----------+    +-----------------+
 ```
 
 ---
 
-##  Auto-Water OFFLINE 
+## Auto-Water OFFLINE
 
 ### Cách hoạt động
 - Ngưỡng độ ẩm (`threshold`) và chế độ (`auto`) lưu trong Preferences (non-volatile)
-- Backend **chỉ gửi config** 
+- Backend **chỉ gửi config**
 - Khi mất WiFi, ESP32 vẫn tưới tự động bình thường
 
 ### Luồng:
@@ -45,13 +42,13 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local.
 1. User bật auto = 1, threshold = 40% qua API:
    POST /iot/config/{macId}?auto=1&threshold=40
 
-2. Backend gửi MQTT topic iot/{mac}/config:
+2. Backend gửi MQTT topic user/{username}/iot/{macId}/config:
    {"auto":1, "threshold":40}
 
 3. ESP32 (Core 1) mỗi 2 giây:
    - Đọc cảm biến
-   - Nếu độ ẩm < threshold AND bơm đang tắt → BẬT bơm
-   - Nếu độ ẩm >= threshold AND bơm đang chạy → TẮT bơm
+   - Nếu độ ẩm < threshold AND bơm đang tắt -> BẬT bơm
+   - Nếu độ ẩm >= threshold AND bơm đang chạy -> TẮT bơm
    - KHÔNG cần chờ server
 
 4. ESP32 (Core 0) mỗi 15 giây:
@@ -61,7 +58,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local.
 
 ---
 
-##  Công Nghệ
+## Công Nghệ
 
 ### Backend
 - **Java 17** + **Spring Boot 3.1.5**
@@ -118,7 +115,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local.
 | GET | `/iot/sensor/{deviceId}/luuluong` | Lưu lượng nước |
 | GET | `/iot/status/{deviceId}` | Trạng thái online/offline |
 
-###  Lịch tưới & Chia sẻ
+### Lịch tưới & Chia sẻ
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -127,7 +124,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local.
 | GET | `/iot/shared` | Thiết bị được chia sẻ với tôi |
 | GET/POST | `/iot/alert/...` | Cảnh báo Telegram |
 
-###  Người dùng (`/users`)
+### Người dùng (`/users`)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -137,7 +134,7 @@ ESP32 tự động tưới OFFLINE dựa trên threshold local.
 
 ---
 
-##  Cấu Trúc Dự Án
+## Cấu Trúc Dự Án
 
 ```
 Backend/
@@ -174,15 +171,15 @@ Backend/
 │   └── websocket/
 │       └── LegacyWebSocketHandler.java  # Cho ESP32 firmware cũ
 │
-├── src/arduino.cpp                    # ESP32 Firmware v3.0 Dual-Core
+├── firmware/esp32.cpp                 # ESP32 Firmware v3.0 Dual-Core
 │
-├── application.yml                    # JWT, MQTT, Telegram config
-└── Dockerfile (tuỳ chọn)
+├── src/main/resources/application.yml # JWT, MQTT, Telegram config
+└── update.md                          # Hướng dẫn cập nhật
 ```
 
 ---
 
-##  Chạy Dự Án
+## Chạy Dự Án
 
 ### 1. MQTT Broker
 ```bash
@@ -209,38 +206,54 @@ java -jar target/smartgardenmini-2.0.0.jar \
 
 ### 4. ESP32
 1. Cài Arduino IDE + board ESP32 + thư viện: `PubSubClient`, `WebSocketsClient`, `ArduinoJson`
-2. Nạp `src/arduino.cpp`
-3. Kết nối WiFi AP `"caidat"` → nhập thông tin
+2. Nạp `firmware/esp32.cpp`
+3. Kết nối WiFi AP `"caidat"` -> nhập thông tin
 
 ---
 
-##  ESP32 Dual-Core Chi Tiết
+## ESP32 Dual-Core Chi Tiết
 
 ```
 Core 0 (PRO_CPU) - Network Task:
-├── MQTT connect + loop + reconnect
-├── WebSocket (legacy)
-├── Gửi telemetry mỗi 15s
-├── Nhận lệnh ON/OFF/RESET
-└── Nhận config (auto, threshold)
++-- MQTT connect + loop + reconnect
++-- WebSocket (legacy)
++-- Gửi telemetry mỗi 15s
++-- Nhận lệnh ON/OFF/RESET
++-- Nhận config (auto, threshold)
 
 Core 1 (APP_CPU) - Sensor Task:
-├── Đọc cảm biến mỗi 2s
-├── Auto-water OFFLINE (so sánh threshold)
-├── Fail-safe (tắt bơm sau 5 phút)
-└── Chia sẻ dữ liệu qua mutex
++-- Đọc cảm biến mỗi 2s
++-- Auto-water OFFLINE (so sánh threshold)
++-- Fail-safe (tắt bơm sau 5 phút)
++-- Chia sẻ dữ liệu qua mutex
 ```
 
 ---
 
-##  Cấu Hình Môi Trường
+## Cấu Hình Môi Trường
 
 | Biến | Mô tả | Mặc định |
 |------|-------|----------|
 | `BOT_TOKEN` | Telegram Bot Token | (trống) |
 | `CHAT_ID` | Telegram Chat ID | (trống) |
-| `MQTT_USER` | MQTT username | smartgardenmini |
-| `MQTT_PASS` | MQTT password | smartgardenmini123 |
+| `MQTT_USER` | MQTT username | tuoicay |
+| `MQTT_PASS` | MQTT password | tuoicay123 |
 
 ---
 
+## Cấu trúc MQTT Topic
+
+Backend subscribe wildcard 2 cấp để nhận tin từ tất cả thiết bị:
+
+```
+Inbound (subscribe):
+  user/+/iot/+/telemetry   # Dữ liệu cảm biến
+  user/+/iot/+/status      # Trạng thái online/offline
+  user/+/iot/+/ack         # Xác nhận lệnh (mới thêm)
+
+Outbound (publish):
+  user/{username}/iot/{macId}/command  # Gửi lệnh ON/OFF/RESET
+  user/{username}/iot/{macId}/config   # Gửi config auto/threshold
+```
+
+Thiết bị ESP32 sử dụng topic có prefix `user/{username}/iot/{macId}/...` để phân biệt giữa các user. Backend dùng macId để định danh thiết bị, username để xác định chủ sở hữu.

@@ -161,7 +161,7 @@ void sendAck(const String& cmd) {
   String s;
   serializeJson(ack, s);
   if (mqttClient.connected())
-    mqttClient.publish((String("iot/") + deviceMac + "/ack").c_str(), s.c_str());
+    mqttClient.publish((String("user/") + username + "/iot/" + deviceMac + "/ack").c_str(), s.c_str());
 }
 
 // ==================== Core 0: Gửi dữ liệu ====================
@@ -184,7 +184,7 @@ void sendTelemetry() {
   serializeJson(doc, jsonStr);
 
   if (mqttClient.connected())
-    mqttClient.publish((String("iot/") + deviceMac + "/telemetry").c_str(), jsonStr.c_str(), true);
+    mqttClient.publish((String("user/") + username + "/iot/" + deviceMac + "/telemetry").c_str(), jsonStr.c_str(), true);
   if (webSocket.isConnected())
     webSocket.sendTXT(jsonStr);
 }
@@ -195,8 +195,9 @@ bool connectMQTT() {
   String clientId = "esp32_" + deviceMac + "_" + String(random(0xffff), HEX);
   if (mqttClient.connect(clientId.c_str(), "tuoicay", "tuoicay123")) {
     mqttConnected = true;
-    String cmdTopic = "iot/" + deviceMac + "/command";
-    String cfgTopic = "iot/" + deviceMac + "/config";
+    String prefix = "user/" + username + "/iot/" + deviceMac;
+    String cmdTopic = prefix + "/command";
+    String cfgTopic = prefix + "/config";
     mqttClient.subscribe(cmdTopic.c_str());
     mqttClient.subscribe(cfgTopic.c_str());
     Serial.printf("[Core0] MQTT subscribed: %s, %s\n", cmdTopic.c_str(), cfgTopic.c_str());
@@ -205,7 +206,7 @@ bool connectMQTT() {
     s["online"] = true;
     String ss;
     serializeJson(s, ss);
-    mqttClient.publish((String("iot/") + deviceMac + "/status").c_str(), ss.c_str(), true);
+    mqttClient.publish((prefix + "/status").c_str(), ss.c_str(), true);
     sendTelemetry();
     return true;
   }

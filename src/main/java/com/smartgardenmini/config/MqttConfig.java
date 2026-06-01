@@ -39,6 +39,9 @@ public class MqttConfig {
     @Value("${mqtt.topic.status}")
     private String statusTopic;
 
+    @Value("${mqtt.topic.ack}")
+    private String ackTopic;
+
     @Bean
     public Mqttv5ClientManager mqttClientManager() {
         MqttConnectionOptions options = new MqttConnectionOptions();
@@ -66,7 +69,7 @@ public class MqttConfig {
         Mqttv5PahoMessageDrivenChannelAdapter adapter =
                 new Mqttv5PahoMessageDrivenChannelAdapter(
                         mqttClientManager(), "_backend_in_" + System.currentTimeMillis(),
-                        telemetryTopic, statusTopic);
+                        telemetryTopic, statusTopic, ackTopic);
 
         MqttHeaderMapper headerMapper = new MqttHeaderMapper();
         headerMapper.setOutboundHeaderNames("mqtt_topic", "mqtt_receivedRetained");
