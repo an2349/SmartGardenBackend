@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class UserService {
@@ -23,7 +24,7 @@ public class UserService {
     private final DeviceService deviceService;
     private final PasswordEncoder passwordEncoder;
 
-    private final Map<Integer, CodeInfo> codeMap = new HashMap<>();
+    private final Map<Integer, CodeInfo> codeMap = new ConcurrentHashMap<>();
     private static final long CODE_TIMEOUT = 3 * 60 * 1000; // 3 phút
 
     public UserService(UserRepository userRepo, IotRepository iotRepo,
@@ -168,7 +169,13 @@ public class UserService {
     public ResponseEntity<String> registerDevice(int code, Iot newIot) {
         if (verifyAuthCode(newIot.getMacId(), code, newIot.getUsername())) {
             codeMap.remove(code);
-            return deviceService.addDevice(newIot);
+            // Lưu trực tiếp thiết bị với username đã được xác thực qua authCode,
+            // không qua deviceService.addDevice() để tránh bị ghi đè username bởi anonymousUser
+            if (iotRepo.existsBymacId(newIot.getMacId())) {
+                return ResponseEntity.badRequest().body("Thiết bị đã tồn tại!");
+            }
+            iotRepo.save(newIot);
+            return ResponseEntity.ok("Đã thêm thiết bị thành công");
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Mã xác thực không hợp lệ hoặc đã hết hạn");
     }

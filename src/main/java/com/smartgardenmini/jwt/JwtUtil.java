@@ -66,11 +66,6 @@ public class JwtUtil {
         return createToken(claims, username, accessSecretKey, accessExpiration);
     }
 
-    public String generateRefreshToken(String username) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("type", "refresh");
-        return createToken(claims, username, refreshSecretKey, refreshExpiration);
-    }
 
     private String createToken(Map<String, Object> claims, String subject, SecretKey key, long expiration) {
         return Jwts.builder()
@@ -100,7 +95,7 @@ public class JwtUtil {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            return !isTokenExpired(token) && "refresh".equals(claims.get("type"));
+            return !claims.getExpiration().before(new Date()) && "refresh".equals(claims.get("type"));
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
@@ -115,6 +110,14 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(refreshToken)
                 .getPayload();
-        return generateAccessToken(claims.getSubject(), claims.get("role", String.class));
+        String role = claims.get("role", String.class);
+        return generateAccessToken(claims.getSubject(), role);
+    }
+
+    public String generateRefreshToken(String username, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "refresh");
+        claims.put("role", role);
+        return createToken(claims, username, refreshSecretKey, refreshExpiration);
     }
 }

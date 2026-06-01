@@ -21,7 +21,7 @@ server:
 
 # JWT Configuration
 jwt:
-  secret: tuoicay-secret-key-2024-change-in-production-environment-v2
+  secret: ${JWT_SECRET:tuoicay-secret-key-2024-change-in-production-environment-v2}
   access-token-expiration: 3600000    # 1 giờ
   refresh-token-expiration: 604800000 # 7 ngày
 

@@ -31,7 +31,7 @@ public class AuthController {
         if (result.getStatusCode().is2xxSuccessful()) {
             User user = (User) result.getBody();
             String accessToken = jwtUtil.generateAccessToken(user.getUsername(), String.valueOf(user.getRole()));
-            String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
+            String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), String.valueOf(user.getRole()));
             return ResponseEntity.ok(Map.of(
                     "accessToken", accessToken,
                     "refreshToken", refreshToken,
