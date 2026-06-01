@@ -32,11 +32,11 @@ mqtt:
   username: ${MQTT_USER:tuoicay}
   password: ${MQTT_PASS:tuoicay123}
   topic:
-    telemetry: iot/+/telemetry
-    status: iot/+/status
-    command: iot/{macId}/command
-    config: iot/{macId}/config
-    ack: iot/+/ack
+    telemetry: user/+/iot/+/telemetry
+    status: user/+/iot/+/status
+    command: user/{username}/iot/{macId}/command
+    config: user/{username}/iot/{macId}/config
+    ack: user/+/iot/+/ack
 
 # Telegram Bot (cảnh báo)
 telegram:
