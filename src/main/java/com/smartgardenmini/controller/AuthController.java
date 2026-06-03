@@ -1,8 +1,11 @@
 package com.smartgardenmini.controller;
 
+import com.smartgardenmini.dto.LoginRequest;
+import com.smartgardenmini.dto.RegisterRequest;
 import com.smartgardenmini.jwt.JwtUtil;
 import com.smartgardenmini.model.Iot;
 import com.smartgardenmini.model.User;
+import com.smartgardenmini.model.ApiResponse;
 import com.smartgardenmini.service.UserService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -26,26 +29,45 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User loginUser) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        User loginUser = new User();
+        loginUser.setUsername(loginRequest.getUsername());
+        loginUser.setPassword(loginRequest.getPassword());
+
         ResponseEntity<?> result = userService.login(loginUser);
         if (result.getStatusCode().is2xxSuccessful()) {
             User user = (User) result.getBody();
             String accessToken = jwtUtil.generateAccessToken(user.getUsername(), String.valueOf(user.getRole()));
             String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), String.valueOf(user.getRole()));
             return ResponseEntity.ok(Map.of(
-                    "accessToken", accessToken,
-                    "refreshToken", refreshToken,
-                    "username", user.getUsername(),
-                    "role", user.getRole(),
-                    "name", user.getName()
+                    "success", true,
+                    "message", "Đăng nhập thành công",
+                    "data", Map.of(
+                        "accessToken", accessToken,
+                        "refreshToken", refreshToken,
+                        "username", user.getUsername(),
+                        "role", user.getRole(),
+                        "name", user.getName()
+                    )
             ));
         }
         return result;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody User newUser) {
-        return userService.register(newUser);
+    public ResponseEntity<ApiResponse<String>> register(@Valid @RequestBody RegisterRequest registerRequest) {
+        User newUser = new User();
+        newUser.setUsername(registerRequest.getUsername());
+        newUser.setPassword(registerRequest.getPassword());
+        newUser.setName(registerRequest.getName());
+        newUser.setSdt(registerRequest.getSdt());
+        newUser.setRole(1); // Mặc định là user thường
+        
+        var result = userService.register(newUser);
+        if (result.getStatusCode().is4xxClientError()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(result.getBody()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(result.getBody()));
     }
 
     @PostMapping("/refresh")
@@ -53,10 +75,13 @@ public class AuthController {
         try {
             String refreshToken = request.get("refreshToken");
             String newAccessToken = jwtUtil.refreshAccessToken(refreshToken);
-            return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", Map.of("accessToken", newAccessToken)
+            ));
         } catch (Exception e) {
             log.warn("Refresh token thất bại", e);
-            return ResponseEntity.status(401).body("Token không hợp lệ");
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "Token không hợp lệ"));
         }
     }
 
