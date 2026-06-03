@@ -6,6 +6,7 @@ import com.smartgardenmini.service.ScheduleService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,14 +31,17 @@ public class DeviceController {
         return deviceService.getAllDevices();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Iot> getDeviceById(@PathVariable Long id) {
-        return deviceService.getDeviceById(id);
+    @GetMapping("/{macId}")
+    public ResponseEntity<Iot> getDeviceById(@PathVariable String macId) {
+        return deviceService.getDeviceByMacId(macId);
     }
 
     @PostMapping
-    public ResponseEntity<String> addDevice(@RequestBody Iot newDevice) {
-        return deviceService.addDevice(newDevice);
+    public ResponseEntity<ApiResponse<Iot>> addDevice(@RequestBody Iot newDevice) {
+        if (deviceService.addDevice(newDevice).getStatusCode() == HttpStatus.BAD_REQUEST) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Thiết bị đã tồn tại!"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Đã thêm thiết bị thành công", newDevice));
     }
 
     @PutMapping("/{deviceId}")
@@ -47,8 +51,12 @@ public class DeviceController {
     }
 
     @DeleteMapping("/{deviceId}")
-    public ResponseEntity<String> deleteDevice(@PathVariable String deviceId) {
-        return deviceService.deleteDevice(deviceId);
+    public ResponseEntity<ApiResponse<String>> deleteDevice(@PathVariable String deviceId) {
+        var result = deviceService.deleteDevice(deviceId);
+        if (result.getStatusCode() == HttpStatus.NOT_FOUND) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(ApiResponse.ok(result.getBody()));
     }
 
     // ==================== Control ====================

@@ -171,9 +171,28 @@ public class DeviceService {
     private boolean canAccess(String macId, String username) {
         Optional<Iot> device = iotRepo.findBymacId(macId);
         if (device.isEmpty()) return false;
-        return device.get().getUsername().equals(username)
-                || getCurrentUser().map(u -> u.getRole() == 0).orElse(false)
-                || shareRepo.existsByMacIdAndSharedUsername(macId, username);
+        // Chủ sở hữu hoặc admin luôn có quyền
+        if (device.get().getUsername().equals(username)
+                || getCurrentUser().map(u -> u.getRole() == 0).orElse(false)) {
+            return true;
+        }
+        // Kiểm tra share với quyền tối thiểu CONTROL
+        return shareRepo.findByMacIdAndSharedUsername(macId, username)
+                .map(s -> !s.isExpired() && ("CONTROL".equals(s.getPermission()) || "ADMIN".equals(s.getPermission())))
+                .orElse(false);
+    }
+
+    private boolean canView(String macId, String username) {
+        Optional<Iot> device = iotRepo.findBymacId(macId);
+        if (device.isEmpty()) return false;
+        if (device.get().getUsername().equals(username)
+                || getCurrentUser().map(u -> u.getRole() == 0).orElse(false)) {
+            return true;
+        }
+        // VIEW hoặc CONTROL hoặc ADMIN đều được xem
+        return shareRepo.findByMacIdAndSharedUsername(macId, username)
+                .map(s -> !s.isExpired())
+                .orElse(false);
     }
 
     // ==================== Device CRUD ====================
@@ -190,10 +209,10 @@ public class DeviceService {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
-    public ResponseEntity<Iot> getDeviceById(Long id) {
+    public ResponseEntity<Iot> getDeviceByMacId(String macId) {
         String username = getCurrentUsername();
-        Optional<Iot> device = iotRepo.findById(id);
-        if (device.isPresent() && canAccess(device.get().getMacId(), username)) {
+        Optional<Iot> device = iotRepo.findBymacId(macId);
+        if (device.isPresent() && canAccess(macId, username)) {
             return ResponseEntity.ok(device.get());
         }
         return ResponseEntity.notFound().build();
@@ -294,7 +313,7 @@ public class DeviceService {
     // ==================== Data Access ====================
 
     public ResponseEntity<List<SensorData>> getDeviceData(String macId) {
-        if (canAccess(macId, getCurrentUsername())) {
+        if (canView(macId, getCurrentUsername())) {
             return ResponseEntity.ok(sensorDataRepo.findByMacOrderByTimeDesc(macId));
         }
         return ResponseEntity.notFound().build();
@@ -302,7 +321,7 @@ public class DeviceService {
 
     public ResponseEntity<Map<String, Object>> getDeviceDataStats(String macId,
                                                                    LocalDateTime from, LocalDateTime to) {
-        if (!canAccess(macId, getCurrentUsername())) {
+        if (!canView(macId, getCurrentUsername())) {
             return ResponseEntity.notFound().build();
         }
         List<SensorData> data = sensorDataRepo.findByMacAndTimeBetweenOrderByTimeAsc(macId, from, to);
@@ -323,21 +342,21 @@ public class DeviceService {
     }
 
     public ResponseEntity<List<WateringHistory>> getWateringHistory(String macId) {
-        if (!canAccess(macId, getCurrentUsername())) {
+        if (!canView(macId, getCurrentUsername())) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(historyRepo.findByMacOrderByTimestampDesc(macId));
     }
 
     public ResponseEntity<List<WateringHistory>> getWateringHistory(String macId, LocalDateTime from, LocalDateTime to) {
-        if (!canAccess(macId, getCurrentUsername())) {
+        if (!canView(macId, getCurrentUsername())) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(historyRepo.findByMacAndTimestampBetweenOrderByTimestampAsc(macId, from, to));
     }
 
     public float getCurrentHumidity(String macId) throws Exception {
-        if (!canAccess(macId, getCurrentUsername())) {
+        if (!canView(macId, getCurrentUsername())) {
             throw new Exception("Không có quyền truy cập");
         }
         // Ưu tiên lấy từ lastSeen (dữ liệu gần nhất có trong DB)

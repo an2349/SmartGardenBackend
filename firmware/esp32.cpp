@@ -1,4 +1,3 @@
-
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsClient.h>
@@ -47,6 +46,7 @@ const unsigned long MQTT_RECONNECT_INTERVAL = 5000;
 
 String deviceMac = "";
 String inputSSID = "", inputPASS = "", authCode = "", username = "", nameiot = "";
+String mqttUser = "", mqttPass = "";
 bool shouldRegister = false;
 bool wifiConnected = false;
 bool mqttConnected = false;
@@ -195,7 +195,7 @@ void sendTelemetry() {
 bool connectMQTT() {
   if (WiFi.status() != WL_CONNECTED) return false;
   String clientId = "esp32_" + deviceMac + "_" + String(random(0xffff), HEX);
-  if (mqttClient.connect(clientId.c_str(), "tuoicay", "tuoicay123")) {
+  if (mqttClient.connect(clientId.c_str(), mqttUser.c_str(), mqttPass.c_str())) {
     mqttConnected = true;
     Serial.println("[Core0] MQTT connected");
     String prefix = "user/" + username + "/iot/" + deviceMac;
@@ -288,6 +288,8 @@ void handleRoot() { server.send(200, "text/html",
   "Tên thiết bị: <input type='text' name='name' required><br>"
   "SSID WiFi: <input type='text' name='ssid' required><br>"
   "Password: <input type='password' name='password'><br>"
+  "MQTT User: <input type='text' name='mqtt_user' value='tuoicay'><br>"
+  "MQTT Pass: <input type='password' name='mqtt_pass'><br>"
   "Mã xác thực: <input type='text' name='authcode' required><br>"
   "<input type='submit' value='Gửi'></form></body></html>"); }
 
@@ -295,10 +297,14 @@ void handleSubmit() {
   if (server.hasArg("ssid") && server.hasArg("authcode") && server.hasArg("name") && server.hasArg("username")) {
     inputSSID = server.arg("ssid"); inputPASS = server.arg("password");
     authCode = server.arg("authcode"); nameiot = server.arg("name"); username = server.arg("username");
+    String mqttUserInput = server.arg("mqtt_user");
+    String mqttPassInput = server.arg("mqtt_pass");
     preferences.begin("wifi", false);
     preferences.putString("ssid", inputSSID); preferences.putString("pass", inputPASS);
     preferences.putString("auth", authCode); preferences.putString("user", username);
     preferences.putString("nameiot", nameiot);
+    if (!mqttUserInput.isEmpty()) preferences.putString("mqtt_user", mqttUserInput);
+    if (!mqttPassInput.isEmpty()) preferences.putString("mqtt_pass", mqttPassInput);
     preferences.end();
     server.send(200, "text/plain", "Đã nhận. Thiết bị sẽ đăng ký và khởi động lại...");
     shouldRegister = true;
@@ -353,6 +359,10 @@ void setup() {
   authCode = preferences.getString("auth", "");
   username = preferences.getString("user", "");
   nameiot = preferences.getString("nameiot", "");
+  mqttUser = preferences.getString("mqtt_user", "");
+  mqttPass = preferences.getString("mqtt_pass", "");
+  if (mqttUser.isEmpty()) mqttUser = "tuoicay";
+  if (mqttPass.isEmpty()) mqttPass = "tuoicay123";
   autoMode = preferences.getInt("auto", 0);
   thresholdDoam = preferences.getFloat("threshold", 30.0);
   preferences.end();
