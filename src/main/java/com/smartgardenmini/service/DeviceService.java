@@ -5,7 +5,6 @@ import com.smartgardenmini.repository.*;
 import com.smartgardenmini.websocket.LegacyWebSocketHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.MessageChannel;
@@ -22,6 +21,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -38,18 +39,22 @@ public class DeviceService {
     private final ScheduleService scheduleService;
     private final LegacyWebSocketHandler legacyWebSocket;
     private final MessageChannel mqttOutputChannel;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // Online tracking: macId → lastSeen
     private final Map<String, LocalDateTime> lastSeen = new ConcurrentHashMap<>();
     // Command ACK tracking
     private final Map<String, CompletableFuture<Boolean>> pendingAcks = new ConcurrentHashMap<>();
+    // Scheduled executor for delayed OFF commands
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
     public DeviceService(IotRepository iotRepo, UserRepository userRepo,
                          SensorDataRepository sensorDataRepo, WateringHistoryRepository historyRepo,
                          DeviceShareRepository shareRepo, AlertRuleRepository alertRuleRepo,
                          ScheduleService scheduleService,
                          LegacyWebSocketHandler legacyWebSocket,
-                         MessageChannel mqttOutputChannel) {
+                         MessageChannel mqttOutputChannel,
+                         com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.iotRepo = iotRepo;
         this.userRepo = userRepo;
         this.sensorDataRepo = sensorDataRepo;
@@ -59,6 +64,7 @@ public class DeviceService {
         this.scheduleService = scheduleService;
         this.legacyWebSocket = legacyWebSocket;
         this.mqttOutputChannel = mqttOutputChannel;
+        this.objectMapper = objectMapper;
     }
 
     // ==================== Online Tracking ====================
@@ -112,7 +118,7 @@ public class DeviceService {
                 username = iotRepo.findBymacId(macId).map(Iot::getUsername).orElse("unknown");
             }
             String topic = "user/" + username + "/iot/" + macId + "/command";
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
+            String json = objectMapper.writeValueAsString(payload);
             mqttOutputChannel.send(MessageBuilder.withPayload(json.getBytes())
                     .setHeader("mqtt_topic", topic)
                     .build());
@@ -139,8 +145,7 @@ public class DeviceService {
 
     public void processAck(String macId, String payload) {
         try {
-            com.fasterxml.jackson.databind.JsonNode node =
-                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(payload);
+            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(payload);
             String command = node.has("command") ? node.get("command").asText() : "";
             boolean success = node.has("status") && "OK".equals(node.get("status").asText());
             String key = macId + "_" + command;
@@ -280,8 +285,7 @@ public class DeviceService {
 
         // Nếu có duration, tự động OFF sau đó
         if (durationSec != null && "ON".equals(command)) {
-            java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
-                    .schedule(() -> sendMqttCommand(macId, "OFF"), durationSec, TimeUnit.SECONDS);
+            scheduler.schedule(() -> sendMqttCommand(macId, "OFF"), durationSec, TimeUnit.SECONDS);
         }
 
         return ResponseEntity.ok("Đã gửi lệnh " + command + " tới " + macId);
@@ -410,7 +414,7 @@ public class DeviceService {
             if (threshold != null) payload.put("threshold", threshold);
 
             String topic = "user/" + username + "/iot/" + macId + "/config";
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);
+            String json = objectMapper.writeValueAsString(payload);
             mqttOutputChannel.send(MessageBuilder.withPayload(json.getBytes())
                     .setHeader("mqtt_topic", topic)
                     .build());
@@ -439,5 +443,10 @@ public class DeviceService {
     public ResponseEntity<AlertRule> saveAlertRule(AlertRule rule) {
         rule.setUsername(getCurrentUsername());
         return ResponseEntity.ok(alertRuleRepo.save(rule));
+    }
+
+    @jakarta.annotation.PreDestroy
+    public void shutdown() {
+        scheduler.shutdown();
     }
 }

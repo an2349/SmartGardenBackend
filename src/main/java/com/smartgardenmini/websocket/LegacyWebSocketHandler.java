@@ -37,20 +37,22 @@ public class LegacyWebSocketHandler extends TextWebSocketHandler {
     private final DeviceService deviceService;
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<Float>> pendingRequests = new ConcurrentHashMap<>();
+    private final ObjectMapper objectMapper;
 
     public LegacyWebSocketHandler(IotRepository iotRepo, SensorDataRepository sensorDataRepo,
-                                  WateringHistoryRepository historyRepo, DeviceService deviceService) {
+                                  WateringHistoryRepository historyRepo, DeviceService deviceService,
+                                  ObjectMapper objectMapper) {
         this.iotRepo = iotRepo;
         this.sensorDataRepo = sensorDataRepo;
         this.historyRepo = historyRepo;
         this.deviceService = deviceService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode node = mapper.readTree(message.getPayload());
+            JsonNode node = objectMapper.readTree(message.getPayload());
 
             String deviceId = node.get("Mac").asText();
             float doam = (float) node.get("Doam").asDouble();

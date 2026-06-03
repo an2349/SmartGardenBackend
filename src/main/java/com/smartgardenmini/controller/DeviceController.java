@@ -35,13 +35,14 @@ public class DeviceController {
         return deviceService.getDeviceById(id);
     }
 
-    @PostMapping("/add")
+    @PostMapping
     public ResponseEntity<String> addDevice(@RequestBody Iot newDevice) {
         return deviceService.addDevice(newDevice);
     }
 
-    @PostMapping("/fix")
-    public ResponseEntity<Iot> updateDevice(@RequestBody Iot newDevice) {
+    @PutMapping("/{deviceId}")
+    public ResponseEntity<Iot> updateDevice(@PathVariable String deviceId, @RequestBody Iot newDevice) {
+        newDevice.setMacId(deviceId);
         return deviceService.updateDevice(newDevice);
     }
 

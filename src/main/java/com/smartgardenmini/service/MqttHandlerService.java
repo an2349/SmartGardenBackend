@@ -20,15 +20,17 @@ public class MqttHandlerService {
     private final WateringHistoryRepository historyRepo;
     private final DeviceService deviceService;
     private final AlertService alertService;
+    private final ObjectMapper objectMapper;
 
     public MqttHandlerService(IotRepository iotRepo, SensorDataRepository sensorDataRepo,
                               WateringHistoryRepository historyRepo, DeviceService deviceService,
-                              AlertService alertService) {
+                              AlertService alertService, ObjectMapper objectMapper) {
         this.iotRepo = iotRepo;
         this.sensorDataRepo = sensorDataRepo;
         this.historyRepo = historyRepo;
         this.deviceService = deviceService;
         this.alertService = alertService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -65,8 +67,7 @@ public class MqttHandlerService {
     }
 
     private void handleTelemetry(String topic, String payload, String macId, String username) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode node = mapper.readTree(payload);
+        JsonNode node = objectMapper.readTree(payload);
 
         // Kiểm tra thiết bị đã đăng ký chưa
         Iot device = iotRepo.findBymacId(macId).orElse(null);
@@ -97,8 +98,7 @@ public class MqttHandlerService {
     }
 
     private void handleStatus(String topic, String payload, String macId, String username) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode node = mapper.readTree(payload);
+        JsonNode node = objectMapper.readTree(payload);
         boolean online = node.has("online") && node.get("online").asBoolean();
         deviceService.markOnline(macId);
         log.debug("Thiết bị {} (user={}) online={}", macId, username, online);

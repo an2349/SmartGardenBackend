@@ -186,16 +186,29 @@ Backend/
 docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto
 ```
 
-### 2. Backend
+### 2. H2 Database Server (TCP mode)
+```bash
+# Nếu dùng H2 TCP (jdbc:h2:tcp://localhost/~/data/tuoicaydb), cần chạy H2 server trước:
+# Tải H2 từ https://h2database.com hoặc dùng trong dependencies
+java -cp h2*.jar org.h2.tools.Server -tcp -tcpAllowOthers -tcpPort 9092
+
+# Hoặc nếu dùng Maven:
+mvn exec:java -Dexec.mainClass="org.h2.tools.Server" -Dexec.args="-tcp -tcpAllowOthers -tcpPort 9092"
+```
+
+### 3. Backend
 ```bash
 # Build
 mvn clean package -DskipTests
 
 # Chạy (cần MQTT broker đang chạy)
 java -jar target/smartgardenmini-2.0.0.jar
+
+# Nếu muốn chạy với H2 TCP (thay vì H2 nhúng):
+java -jar target/smartgardenmini-2.0.0.jar --spring.datasource.url=jdbc:h2:tcp://localhost:9092/~/data/tuoicaydb
 ```
 
-### 3. Cấu hình Telegram (tuỳ chọn)
+### 4. Cấu hình Telegram (tuỳ chọn)
 ```bash
 # Tạo bot qua BotFather, lấy token
 # Tìm chat ID (gửi tin nhắn rồi truy cập api.telegram.org/...)
@@ -204,7 +217,7 @@ java -jar target/smartgardenmini-2.0.0.jar \
   --telegram.chat-id=123456
 ```
 
-### 4. ESP32
+### 5. ESP32
 1. Cài Arduino IDE + board ESP32 + thư viện: `PubSubClient`, `WebSocketsClient`, `ArduinoJson`
 2. Nạp `firmware/esp32.cpp`
 3. Kết nối WiFi AP `"caidat"` -> nhập thông tin

@@ -1,5 +1,6 @@
 
 #include <WiFi.h>
+#include <WebServer.h>
 #include <WebSocketsClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -48,6 +49,7 @@ String deviceMac = "";
 String inputSSID = "", inputPASS = "", authCode = "", username = "", nameiot = "";
 bool shouldRegister = false;
 bool wifiConnected = false;
+bool mqttConnected = false;
 
 // ==================== Shared Data Helpers ====================
 void setBom(bool on) {
@@ -195,6 +197,7 @@ bool connectMQTT() {
   String clientId = "esp32_" + deviceMac + "_" + String(random(0xffff), HEX);
   if (mqttClient.connect(clientId.c_str(), "tuoicay", "tuoicay123")) {
     mqttConnected = true;
+    Serial.println("[Core0] MQTT connected");
     String prefix = "user/" + username + "/iot/" + deviceMac;
     String cmdTopic = prefix + "/command";
     String cfgTopic = prefix + "/config";
