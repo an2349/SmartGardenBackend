@@ -7,6 +7,7 @@ import com.smartgardenmini.repository.IotRepository;
 import com.smartgardenmini.repository.SensorDataRepository;
 import com.smartgardenmini.repository.WateringHistoryRepository;
 import com.smartgardenmini.service.DeviceService;
+import org.springframework.context.annotation.Lazy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -34,13 +35,13 @@ public class LegacyWebSocketHandler extends TextWebSocketHandler {
     private final IotRepository iotRepo;
     private final SensorDataRepository sensorDataRepo;
     private final WateringHistoryRepository historyRepo;
-    private final DeviceService deviceService;
+    private final @Lazy DeviceService deviceService;
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<Float>> pendingRequests = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
 
     public LegacyWebSocketHandler(IotRepository iotRepo, SensorDataRepository sensorDataRepo,
-                                  WateringHistoryRepository historyRepo, DeviceService deviceService,
+                                  WateringHistoryRepository historyRepo, @Lazy DeviceService deviceService,
                                   ObjectMapper objectMapper) {
         this.iotRepo = iotRepo;
         this.sensorDataRepo = sensorDataRepo;

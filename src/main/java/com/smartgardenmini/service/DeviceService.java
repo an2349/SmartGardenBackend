@@ -5,6 +5,7 @@ import com.smartgardenmini.repository.*;
 import com.smartgardenmini.websocket.LegacyWebSocketHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.MessageChannel;
@@ -12,7 +13,6 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -36,8 +36,8 @@ public class DeviceService {
     private final WateringHistoryRepository historyRepo;
     private final DeviceShareRepository shareRepo;
     private final AlertRuleRepository alertRuleRepo;
-    private final ScheduleService scheduleService;
-    private final LegacyWebSocketHandler legacyWebSocket;
+    private final @Lazy ScheduleService scheduleService;
+    private final @Lazy LegacyWebSocketHandler legacyWebSocket;
     private final MessageChannel mqttOutputChannel;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
@@ -51,8 +51,8 @@ public class DeviceService {
     public DeviceService(IotRepository iotRepo, UserRepository userRepo,
                          SensorDataRepository sensorDataRepo, WateringHistoryRepository historyRepo,
                          DeviceShareRepository shareRepo, AlertRuleRepository alertRuleRepo,
-                         ScheduleService scheduleService,
-                         LegacyWebSocketHandler legacyWebSocket,
+                         @Lazy ScheduleService scheduleService,
+                         @Lazy LegacyWebSocketHandler legacyWebSocket,
                          MessageChannel mqttOutputChannel,
                          com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.iotRepo = iotRepo;

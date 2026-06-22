@@ -46,8 +46,13 @@ public class MqttConfig {
     public Mqttv5ClientManager mqttClientManager() {
         MqttConnectionOptions options = new MqttConnectionOptions();
         options.setServerURIs(new String[]{brokerUrl});
-        options.setUserName(username);
-        options.setPassword(password.getBytes());
+        // Cho phep anonymous neu username/password trong
+        if (username != null && !username.isEmpty()) {
+            options.setUserName(username);
+        }
+        if (password != null && !password.isEmpty()) {
+            options.setPassword(password.getBytes());
+        }
         options.setAutomaticReconnect(true);
         options.setCleanStart(true);
         options.setSessionExpiryInterval(3600L);

@@ -28,7 +28,7 @@ public class Iot {
     @Column(nullable = false)
     private float do_am; // Ngưỡng độ ẩm
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private boolean online = false; // Trạng thái kết nối
 
     public Iot() {}
