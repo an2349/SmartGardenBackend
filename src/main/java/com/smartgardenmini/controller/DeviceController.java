@@ -175,15 +175,16 @@ public class DeviceController {
     }
 
     @GetMapping("/data/{deviceId}/stats")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getDeviceDataStats(
+    public ResponseEntity<ApiResponse<List<SensorDataDTO>>> getDeviceDataStats(
             @PathVariable String deviceId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
-        var result = deviceService.getDeviceDataStats(deviceId, from, to);
+            var result = deviceService.getDeviceDataStats(deviceId, from, to);
         if (result.getStatusCode() == HttpStatus.NOT_FOUND) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(ApiResponse.ok("Thành công", result.getBody()));
+        List<SensorDataDTO> dtos = result.getBody().stream().map(this::toSensorDataDTO).collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.ok("Thành công", dtos));
     }
 
     // ==================== Watering History ====================

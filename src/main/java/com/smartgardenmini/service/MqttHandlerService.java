@@ -69,31 +69,65 @@ public class MqttHandlerService {
     private void handleTelemetry(String topic, String payload, String macId, String username) throws Exception {
         JsonNode node = objectMapper.readTree(payload);
 
-        // Kiểm tra thiết bị đã đăng ký chưa
+        log.info("=== NHAN TELEMETRY ===");
+        log.info("Topic: {}", topic);
+        log.info("Payload: {}", payload);
+        log.info("macId={}, username={}", macId, username);
+
+        // Kiem tra thiet bi da dang ky chua
         Iot device = iotRepo.findBymacId(macId).orElse(null);
         if (device == null) {
-            log.warn("MQTT telemetry từ thiết bị lạ: {}", macId);
+            log.warn("MQTT telemetry tu thiet bi LA (khong co trong DB): macId={}, username={}", macId, username);
+            log.warn("Cac thiet bi trong DB hien co:");
+            iotRepo.findAll().forEach(d -> log.warn("  - macId={}, username={}, name={}", d.getMacId(), d.getUsername(), d.getName()));
             return;
         }
+        log.info("Thiet bi ton tai trong DB: name={}, username={}", device.getName(), device.getUsername());
 
-        // Đánh dấu online
+        // Danh dau online
         deviceService.markOnline(macId);
 
-        // Lưu dữ liệu cảm biến
+        // Luu du lieu cam bien
         SensorData data = new SensorData();
         data.setMac(macId);
-        data.setDoam((float) node.get("doam").asDouble());
-        if (node.has("nhietDo")) data.setNhietDo((float) node.get("nhietDo").asDouble());
-        if (node.has("doAmKK")) data.setDoAmKK((float) node.get("doAmKK").asDouble());
-        if (node.has("anhSang")) data.setAnhSang((float) node.get("anhSang").asDouble());
-        if (node.has("luuLuong")) data.setLuuLuong((float) node.get("luuLuong").asDouble());
+        float doam = (float) node.get("doam").asDouble();
+        data.setDoam(doam);
+        log.info("doam={}", doam);
+        if (node.has("nhietDo")) {
+            float nhietDo = (float) node.get("nhietDo").asDouble();
+            data.setNhietDo(nhietDo);
+            log.info("nhietDo={}", nhietDo);
+        }
+        if (node.has("doAmKK")) {
+            float doAmKK = (float) node.get("doAmKK").asDouble();
+            data.setDoAmKK(doAmKK);
+            log.info("doAmKK={}", doAmKK);
+        }
+        if (node.has("anhSang")) {
+            float anhSang = (float) node.get("anhSang").asDouble();
+            data.setAnhSang(anhSang);
+            log.info("anhSang={}", anhSang);
+        }
+        if (node.has("luuLuong")) {
+            float luuLuong = (float) node.get("luuLuong").asDouble();
+            data.setLuuLuong(luuLuong);
+            log.info("luuLuong={}", luuLuong);
+        }
         data.setTime(LocalDateTime.now());
         sensorDataRepo.save(data);
+        log.info("Da luu SensorData vao DB thanh cong");
 
-        // Cập nhật config từ ESP32 (để dashboard hiển thị đúng)
-        if (node.has("auto")) device.setWater(node.get("auto").asInt());
-        if (node.has("threshold")) device.setDo_am((float) node.get("threshold").asDouble());
-        // Lưu bom vào DB để dashboard biết trạng thái bơm (mở rộng: thêm field relayState)
+        // Cap nhat config tu ESP32 (de dashboard hien thi dung)
+        if (node.has("auto")) {
+            int auto = node.get("auto").asInt();
+            device.setWater(auto);
+            log.info("Cap nhat auto={} cho device", auto);
+        }
+        if (node.has("threshold")) {
+            float threshold = (float) node.get("threshold").asDouble();
+            device.setDo_am(threshold);
+            log.info("Cap nhat threshold={} cho device", threshold);
+        }
         iotRepo.save(device);
     }
 

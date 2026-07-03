@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:tcp://localhost/~/data/tuoicaydb
+    url: jdbc:h2:file:~/data/tuoicaydb
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -28,9 +28,10 @@ jwt:
 # MQTT Configuration
 mqtt:
   broker-url: tcp://localhost:1883
+  broker-port: 1883
   client-id: backend_tuoicay
-  username: ${MQTT_USER:tuoicay}
-  password: ${MQTT_PASS:tuoicay123}
+  username: ${MQTT_USER:}
+  password: ${MQTT_PASS:}
   topic:
     telemetry: user/+/iot/+/telemetry
     status: user/+/iot/+/status

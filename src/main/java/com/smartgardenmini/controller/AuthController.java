@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-@RestController
-@RequestMapping("/auth")
+@RestController//doan nay danh tag bao hieu file nay la controller
+@RequestMapping("/auth") //tag cho url
 public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
@@ -28,7 +28,7 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
-    @PostMapping("/login")
+    @PostMapping("/login")//http post
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         User loginUser = new User();
         loginUser.setUsername(loginRequest.getUsername());
@@ -86,8 +86,15 @@ public class AuthController {
     }
 
     @PostMapping("/dangkythietbi")
+    //@GetMapping("/dangkythietbi")//http get
     public ResponseEntity<String> registerDevice(@RequestParam("authCode") int code,
-                                                  @RequestBody Iot newIot) {
-        return userService.registerDevice(code, newIot);
+                                                  @RequestBody Iot newIot) { //@requet param va boby
+                                                                                // la du lieu lay tu param va body
+        log.info("=== DANG KY THIET BI ===");
+        log.info("authCode={}, macId={}, username={}, name={}", code, newIot.getMacId(), newIot.getUsername(), newIot.getName());
+        log.info("water={}, do_am={}", newIot.getWater(), newIot.getDo_am());
+        ResponseEntity<String> result = userService.registerDevice(code, newIot);
+        log.info("Ket qua dang ky: status={}, body={}", result.getStatusCode(), result.getBody());
+        return result;
     }
 }

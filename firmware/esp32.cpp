@@ -1,6 +1,5 @@
 #include <WiFi.h>
 #include <WebServer.h>
-#include <WebSocketsClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
@@ -8,10 +7,10 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-// ==================== PIN ====================
-const int doamP = 34;     // Cảm biến độ ẩm đất (analog)
-const int congtacP = 26;  // Relay bơm
-const int ledP = 2;       // LED trạng thái
+// ==================== PIN (ESP32-S3-DevKitC-1) ====================
+const int doamP = 4;     // Cảm biến độ ẩm đất (GPIO4 = A3, có ADC)
+const int congtacP = 21;  // Relay bơm (GPIO21 = an toàn, không phải strapping pin)
+const int ledP = 2;       // LED trạng thái (GPIO2 = OK)
 
 // ==================== Shared Data (giữa 2 core) ====================
 Preferences preferences;
@@ -29,6 +28,13 @@ const unsigned long BOM_TIMEOUT = 5 * 60 * 1000; // 5 phút fail-safe
 const unsigned long SEND_INTERVAL = 15000; // 15 giây gửi telemetry
 const unsigned long SENSOR_INTERVAL = 2000; // 2 giây đọc cảm biến
 
+// ==================== Forward declarations ====================
+void sendTelemetry();
+void sendAck(const String& cmd);
+void resetDevice();
+void setBom(bool on);
+bool getBomState();
+
 // ==================== Cấu hình mạng ====================
 const char* ap_ssid = "caidat";
 const char* ap_password = "";
@@ -36,8 +42,6 @@ WebServer server(80);
 
 const char* server_host = "10.42.0.1";
 const uint16_t server_port = 8080;
-const char* ws_path = "/ws/device";
-WebSocketsClient webSocket;
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -119,7 +123,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("[Core0] MQTT: ");
   Serial.println(msg);
 
-  StaticJsonDocument<200> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, msg)) return;
   const char* command = doc["command"];
 
@@ -140,14 +144,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 
   // Config update từ backend
-  if (doc.containsKey("auto")) {
+  if (doc["auto"].is<int>()) {
     autoMode = doc["auto"].as<int>();
     preferences.begin("wifi", false);
     preferences.putInt("auto", autoMode);
     preferences.end();
     Serial.printf("[Core0] Auto mode -> %d\n", autoMode);
   }
-  if (doc.containsKey("threshold")) {
+  if (doc["threshold"].is<float>()) {
     thresholdDoam = doc["threshold"].as<float>();
     preferences.begin("wifi", false);
     preferences.putFloat("threshold", thresholdDoam);
@@ -157,7 +161,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 }
 
 void sendAck(const String& cmd) {
-  StaticJsonDocument<100> ack;
+  JsonDocument ack;
   ack["command"] = cmd;
   ack["status"] = "OK";
   String s;
@@ -175,7 +179,7 @@ void sendTelemetry() {
   doam = currentDoam;
   xSemaphoreGive(dataMutex);
 
-  StaticJsonDocument<200> doc;
+  JsonDocument doc;
   doc["mac"] = deviceMac;
   doc["doam"] = doam;
   doc["bom"] = getBomState() ? 1 : 0;
@@ -187,8 +191,6 @@ void sendTelemetry() {
 
   if (mqttClient.connected())
     mqttClient.publish((String("user/") + username + "/iot/" + deviceMac + "/telemetry").c_str(), jsonStr.c_str(), true);
-  if (webSocket.isConnected())
-    webSocket.sendTXT(jsonStr);
 }
 
 // ==================== Core 0: MQTT Connect ====================
@@ -205,7 +207,7 @@ bool connectMQTT() {
     mqttClient.subscribe(cfgTopic.c_str());
     Serial.printf("[Core0] MQTT subscribed: %s, %s\n", cmdTopic.c_str(), cfgTopic.c_str());
 
-    StaticJsonDocument<100> s;
+    JsonDocument s;
     s["online"] = true;
     String ss;
     serializeJson(s, ss);
@@ -214,20 +216,6 @@ bool connectMQTT() {
     return true;
   }
   return false;
-}
-
-// ==================== WebSocket (Legacy) ====================
-void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
-  if (type == WStype_TEXT) {
-    StaticJsonDocument<200> doc;
-    if (deserializeJson(doc, payload, length)) return;
-    const char* command = doc["command"];
-    if (command) {
-      if (strcmp(command, "ON") == 0) setBom(true);
-      else if (strcmp(command, "OFF") == 0) setBom(false);
-      else if (strcmp(command, "RESET") == 0) { delay(500); resetDevice(); }
-    }
-  } else if (type == WStype_CONNECTED) sendTelemetry();
 }
 
 // ==================== HTTP Retry ====================
@@ -266,7 +254,6 @@ void networkTask(void *pvParameters) {
       } else {
         mqttClient.loop();
       }
-      webSocket.loop();
 
       // Gửi telemetry định kỳ
       static unsigned long lastSend = 0;
@@ -288,8 +275,6 @@ void handleRoot() { server.send(200, "text/html",
   "Tên thiết bị: <input type='text' name='name' required><br>"
   "SSID WiFi: <input type='text' name='ssid' required><br>"
   "Password: <input type='password' name='password'><br>"
-  "MQTT User: <input type='text' name='mqtt_user' value='tuoicay'><br>"
-  "MQTT Pass: <input type='password' name='mqtt_pass'><br>"
   "Mã xác thực: <input type='text' name='authcode' required><br>"
   "<input type='submit' value='Gửi'></form></body></html>"); }
 
@@ -297,14 +282,10 @@ void handleSubmit() {
   if (server.hasArg("ssid") && server.hasArg("authcode") && server.hasArg("name") && server.hasArg("username")) {
     inputSSID = server.arg("ssid"); inputPASS = server.arg("password");
     authCode = server.arg("authcode"); nameiot = server.arg("name"); username = server.arg("username");
-    String mqttUserInput = server.arg("mqtt_user");
-    String mqttPassInput = server.arg("mqtt_pass");
     preferences.begin("wifi", false);
     preferences.putString("ssid", inputSSID); preferences.putString("pass", inputPASS);
     preferences.putString("auth", authCode); preferences.putString("user", username);
     preferences.putString("nameiot", nameiot);
-    if (!mqttUserInput.isEmpty()) preferences.putString("mqtt_user", mqttUserInput);
-    if (!mqttPassInput.isEmpty()) preferences.putString("mqtt_pass", mqttPassInput);
     preferences.end();
     server.send(200, "text/plain", "Đã nhận. Thiết bị sẽ đăng ký và khởi động lại...");
     shouldRegister = true;
@@ -323,7 +304,7 @@ void startRegistrationAP() {
   while (WiFi.status() != WL_CONNECTED && millis() - start < timeout) { delay(500); Serial.print("."); }
   if (WiFi.status() == WL_CONNECTED) {
     String mac = WiFi.macAddress();
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     doc["macId"] = mac; doc["username"] = username; doc["name"] = nameiot;
     doc["water"] = 1; doc["do_am"] = 30;
     String body; serializeJson(doc, body);
@@ -359,10 +340,8 @@ void setup() {
   authCode = preferences.getString("auth", "");
   username = preferences.getString("user", "");
   nameiot = preferences.getString("nameiot", "");
-  mqttUser = preferences.getString("mqtt_user", "");
-  mqttPass = preferences.getString("mqtt_pass", "");
-  if (mqttUser.isEmpty()) mqttUser = "tuoicay";
-  if (mqttPass.isEmpty()) mqttPass = "tuoicay123";
+  mqttUser = "";
+  mqttPass = "";
   autoMode = preferences.getInt("auto", 0);
   thresholdDoam = preferences.getFloat("threshold", 30.0);
   preferences.end();
@@ -379,11 +358,6 @@ void setup() {
   mqttClient.setServer(server_host, 1883);
   mqttClient.setCallback(mqttCallback);
   mqttClient.setKeepAlive(30);
-
-  // WebSocket legacy
-  webSocket.begin(server_host, server_port, String(ws_path) + "?macId=" + deviceMac);
-  webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(10000);
 
   // ===== Dual-Core: Core 0 = Network, Core 1 = Sensor =====
   xTaskCreatePinnedToCore(

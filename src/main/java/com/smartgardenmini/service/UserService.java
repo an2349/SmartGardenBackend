@@ -97,6 +97,33 @@ public class UserService {
         return Optional.empty();
     }
 
+    public Optional<User> getMyProfile() {
+        return getCurrentUser();
+    }
+
+    public ResponseEntity<User> updateMyProfile(User newUser) {
+        Optional<User> current = getCurrentUser();
+        if (current.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        User updated = current.get();
+        if (newUser.getName() != null) updated.setName(newUser.getName());
+        if (newUser.getSdt() != null) updated.setSdt(newUser.getSdt());
+        if (newUser.getPassword() != null && !newUser.getPassword().isEmpty()) {
+            updated.setPassword(passwordEncoder.encode(newUser.getPassword()));
+        }
+        return ResponseEntity.ok(userRepo.save(updated));
+    }
+
+    public ResponseEntity<String> deleteMyAccount() {
+        Optional<User> current = getCurrentUser();
+        if (current.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        userRepo.deleteById(current.get().getId());
+        return ResponseEntity.ok("Đã xoá tài khoản");
+    }
+
     public List<Iot> getMyDevices() {
         return iotRepo.findIotByUsername(getCurrentUsername());
     }
@@ -147,37 +174,65 @@ public class UserService {
 
     public int generateAuthCode() {
         String username = getCurrentUsername();
-        int code = new Random().nextInt(999999); // 6 số
+        int code = new Random().nextInt(999999); // 6 so
         long expiry = System.currentTimeMillis() + CODE_TIMEOUT;
         codeMap.put(code, new CodeInfo(username, expiry));
+        log.info("Sinh authCode: code={}, username={}, expiry={}", code, username, expiry);
         return code;
     }
 
     public boolean verifyAuthCode(String macId, int code, String username) {
+        log.info("=== verifyAuthCode ===");
+        log.info("Input: macId={}, code={}, username={}", macId, code, username);
+
         if (iotRepo.existsBymacId(macId)) {
-            return false; // Thiết bị đã tồn tại
+            log.warn("Thiet bi da ton tai trong DB: macId={}", macId);
+            return false;
         }
         CodeInfo info = codeMap.get(code);
-        if (info == null) return false;
+        if (info == null) {
+            log.warn("Khong tim thay authCode={} trong codeMap. codeMap size={}", code, codeMap.size());
+            // Log cac ma dang co
+            for (Map.Entry<Integer, CodeInfo> e : codeMap.entrySet()) {
+                log.debug("  code={}, username={}, expiry={}", e.getKey(), e.getValue().username, e.getValue().expiry);
+            }
+            return false;
+        }
         if (System.currentTimeMillis() > info.expiry) {
+            log.warn("AuthCode da het han: code={}, expiry={}, now={}", code, info.expiry, System.currentTimeMillis());
             codeMap.remove(code);
             return false;
         }
-        return info.username.equals(username);
+        boolean match = info.username.equals(username);
+        if (!match) {
+            log.warn("Username khong khop: expected={}, actual={}", info.username, username);
+        } else {
+            log.info("Xac thuc authCode thanh cong: macId={}, code={}, username={}", macId, code, username);
+        }
+        return match;
     }
 
     public ResponseEntity<String> registerDevice(int code, Iot newIot) {
+        log.info("=== registerDevice ===");
+        log.info("code={}, macId={}, username={}, name={}, water={}, do_am={}",
+                code, newIot.getMacId(), newIot.getUsername(), newIot.getName(),
+                newIot.getWater(), newIot.getDo_am());
+
         if (verifyAuthCode(newIot.getMacId(), code, newIot.getUsername())) {
             codeMap.remove(code);
-            // Lưu trực tiếp thiết bị với username đã được xác thực qua authCode,
-            // không qua deviceService.addDevice() để tránh bị ghi đè username bởi anonymousUser
+            log.info("AuthCode valid, removing from map");
+            // Luu truc tiep thiet bi voi username da duoc xac thuc qua authCode,
+            // khong qua deviceService.addDevice() de tranh bi ghi de username boi anonymousUser
             if (iotRepo.existsBymacId(newIot.getMacId())) {
-                return ResponseEntity.badRequest().body("Thiết bị đã tồn tại!");
+                log.warn("Thiet bi da ton tai truoc khi luu: macId={}", newIot.getMacId());
+                return ResponseEntity.badRequest().body("Thiet bi da ton tai!");
             }
             iotRepo.save(newIot);
-            return ResponseEntity.ok("Đã thêm thiết bị thành công");
+            log.info("Da luu thiet bi thanh cong: macId={}", newIot.getMacId());
+            return ResponseEntity.ok("Da them thiet bi thanh cong");
         }
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Mã xác thực không hợp lệ hoặc đã hết hạn");
+        log.warn("Dang ky that bai: authCode khong hop le");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ma xac thuc khong hop le hoac da het han");
     }
 
     private static class CodeInfo {

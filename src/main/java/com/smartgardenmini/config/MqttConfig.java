@@ -77,7 +77,7 @@ public class MqttConfig {
                         telemetryTopic, statusTopic, ackTopic);
 
         MqttHeaderMapper headerMapper = new MqttHeaderMapper();
-        headerMapper.setOutboundHeaderNames("mqtt_topic", "mqtt_receivedRetained");
+        headerMapper.setOutboundHeaderNames("mqtt_receivedTopic", "mqtt_receivedRetained");
         adapter.setHeaderMapper(headerMapper);
 
         adapter.setOutputChannel(mqttInputChannel());
@@ -90,7 +90,10 @@ public class MqttConfig {
     public MessageHandler mqttMessageHandler(MqttHandlerService handler) {
         return message -> {
             try {
-                String topic = (String) message.getHeaders().get("mqtt_topic");
+                String topic = (String) message.getHeaders().get("mqtt_receivedTopic");
+                if (topic == null) {
+                    topic = (String) message.getHeaders().get("mqtt_topic");
+                }
                 String payload = new String((byte[]) message.getPayload());
                 handler.handleMessage(topic, payload);
             } catch (Exception e) {

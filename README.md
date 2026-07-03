@@ -92,45 +92,73 @@
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET | `/iot/devices` | Danh sách thiết bị |
-| GET | `/iot/{id}` | Chi tiết thiết bị |
-| POST | `/iot/add` | Thêm thiết bị |
-| POST | `/iot/fix` | Cập nhật thiết bị |
+| GET | `/iot/devices` | Danh sách thiết bị của tôi |
+| GET | `/iot/{macId}` | Chi tiết thiết bị (theo MAC) |
+| POST | `/iot` | Thêm thiết bị mới |
+| PUT | `/iot/{deviceId}` | Cập nhật thiết bị |
 | DELETE | `/iot/{deviceId}` | Xoá thiết bị |
 | POST | `/iot/control/bom/{deviceId}?command=ON&duration=30` | Điều khiển bơm + tưới thời lượng |
-| **POST** | **`/iot/config/{deviceId}?auto=1&threshold=40`** | **Gửi config xuống ESP32** |
+| POST | `/iot/config/{deviceId}?auto=1&threshold=40` | Gửi config xuống ESP32 |
 
 ### Dữ liệu & Giám sát
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET | `/iot/data/{deviceId}` | Dữ liệu cảm biến |
-| GET | `/iot/data/{deviceId}/stats?from=&to=` | Thống kê |
-| GET | `/iot/doam/{deviceId}` | Độ ẩm hiện tại |
+| GET | `/iot/data/{deviceId}` | Dữ liệu cảm biến (mới nhất trước) |
+| GET | `/iot/data/{deviceId}/stats?from=&to=` | Dữ liệu cảm biến theo khoảng thời gian |
 | GET | `/iot/history/{deviceId}` | Lịch sử tưới |
-| GET | `/iot/sensor/{deviceId}/doam` | Độ ẩm đất |
-| GET | `/iot/sensor/{deviceId}/nhietdo` | Nhiệt độ |
-| GET | `/iot/sensor/{deviceId}/doamkk` | Độ ẩm không khí |
-| GET | `/iot/sensor/{deviceId}/anhsang` | Ánh sáng |
-| GET | `/iot/sensor/{deviceId}/luuluong` | Lưu lượng nước |
+| GET | `/iot/history/{deviceId}/range?from=&to=` | Lịch sử tưới theo khoảng |
+| GET | `/iot/sensor/{deviceId}/doam` | Độ ẩm đất hiện tại |
+| GET | `/iot/sensor/{deviceId}/nhietdo` | Nhiệt độ hiện tại |
+| GET | `/iot/sensor/{deviceId}/doamkk` | Độ ẩm không khí hiện tại |
+| GET | `/iot/sensor/{deviceId}/anhsang` | Ánh sáng hiện tại |
+| GET | `/iot/sensor/{deviceId}/luuluong` | Lưu lượng nước hiện tại |
 | GET | `/iot/status/{deviceId}` | Trạng thái online/offline |
 
-### Lịch tưới & Chia sẻ
+### Lịch tưới (`/iot/schedule`)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET/POST/PUT/DELETE | `/iot/schedule/...` | CRUD lịch tưới |
-| GET/POST/DELETE | `/iot/share/...` | Chia sẻ thiết bị |
+| GET | `/iot/schedule/{deviceId}` | Danh sách lịch tưới của thiết bị |
+| POST | `/iot/schedule` | Tạo lịch tưới mới |
+| PUT | `/iot/schedule/{id}` | Cập nhật lịch tưới |
+| DELETE | `/iot/schedule/{id}` | Xoá lịch tưới |
+
+### Chia sẻ thiết bị (`/iot/share`)
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/iot/share/{deviceId}` | Danh sách người được chia sẻ |
+| POST | `/iot/share/{deviceId}?username=&permission=` | Chia sẻ thiết bị cho user khác |
+| DELETE | `/iot/share/{deviceId}/{username}` | Thu hồi quyền chia sẻ |
 | GET | `/iot/shared` | Thiết bị được chia sẻ với tôi |
-| GET/POST | `/iot/alert/...` | Cảnh báo Telegram |
+
+### Cảnh báo (`/iot/alert`)
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/iot/alert/{deviceId}` | Lấy cấu hình cảnh báo |
+| POST | `/iot/alert` | Lưu cấu hình cảnh báo |
 
 ### Người dùng (`/users`)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET/PUT/DELETE | `/users/...` | CRUD user |
+| GET | `/users/me` | Thông tin cá nhân (từ token) |
+| PUT | `/users/me` | Cập nhật thông tin cá nhân |
+| DELETE | `/users/me` | Xoá tài khoản |
 | GET | `/users/devices` | Thiết bị của tôi |
 | GET | `/users/code` | Lấy mã auth code (6 số) |
+| GET/PUT/DELETE | `/users/{id}` | CRUD user (admin) |
+| GET | `/users/all` | Danh sách user (admin) |
+| GET | `/users/root/{key}` | Tìm kiếm user (admin) |
+
+### Frontend Web App
+
+- **Vị trí**: `frontend/` (index.html, script.js, style.css)
+- **Công nghệ**: Vanilla JavaScript, Chart.js
+- **Tính năng**: Đăng nhập/đăng ký, dashboard thiết bị, cảm biến real-time (poll 8s), biểu đồ 24h, điều khiển bơm, lịch tưới, lịch sử, chia sẻ, cảnh báo, dark mode
+- **Chạy**: Mở `frontend/index.html` trong trình duyệt (cần backend đang chạy ở `localhost:8080`)
 
 ---
 

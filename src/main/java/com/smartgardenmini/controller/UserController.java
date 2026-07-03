@@ -91,6 +91,28 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Thành công", dtos));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserDTO>> getMyProfile() {
+        return userService.getMyProfile()
+                .map(user -> ResponseEntity.ok(ApiResponse.ok("Thành công", toUserDTO(user))))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<ApiResponse<UserDTO>> updateMyProfile(@RequestBody User newUser) {
+        var result = userService.updateMyProfile(newUser);
+        if (result.getStatusCode() == HttpStatus.NOT_FOUND) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Đã cập nhật", toUserDTO(result.getBody())));
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<ApiResponse<String>> deleteMyAccount() {
+        var result = userService.deleteMyAccount();
+        return ResponseEntity.ok(ApiResponse.ok(result.getBody()));
+    }
+
     @GetMapping("/code")
     public ResponseEntity<ApiResponse<Integer>> generateAuthCode() {
         int code = userService.generateAuthCode();

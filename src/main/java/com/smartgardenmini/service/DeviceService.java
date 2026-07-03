@@ -319,26 +319,13 @@ public class DeviceService {
         return ResponseEntity.notFound().build();
     }
 
-    public ResponseEntity<Map<String, Object>> getDeviceDataStats(String macId,
-                                                                   LocalDateTime from, LocalDateTime to) {
+    public ResponseEntity<List<SensorData>> getDeviceDataStats(String macId,
+                                                                LocalDateTime from, LocalDateTime to) {
         if (!canView(macId, getCurrentUsername())) {
             return ResponseEntity.notFound().build();
         }
         List<SensorData> data = sensorDataRepo.findByMacAndTimeBetweenOrderByTimeAsc(macId, from, to);
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("count", data.size());
-        stats.put("from", from);
-        stats.put("to", to);
-        if (!data.isEmpty()) {
-            double avg = data.stream().mapToDouble(SensorData::getDoam).average().orElse(0);
-            float min = data.stream().map(SensorData::getDoam).min(Float::compare).orElse(0f);
-            float max = data.stream().map(SensorData::getDoam).max(Float::compare).orElse(0f);
-            stats.put("avg", String.format("%.1f", avg));
-            stats.put("min", min);
-            stats.put("max", max);
-            stats.put("data", data);
-        }
-        return ResponseEntity.ok(stats);
+        return ResponseEntity.ok(data);
     }
 
     public ResponseEntity<List<WateringHistory>> getWateringHistory(String macId) {
